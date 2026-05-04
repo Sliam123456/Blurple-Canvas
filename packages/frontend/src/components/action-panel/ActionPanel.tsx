@@ -231,7 +231,11 @@ export default function ActionPanel() {
         id={frameTabId}
         setTabsLocked={setAreTabsLocked}
       />
-      <BlueprintTab active={currentTab === "blueprint"} id={blueprintTabId} />
+      <BlueprintTab
+        active={currentTab === "blueprint"}
+        eventId={canvas.eventId}
+        id={blueprintTabId}
+      />
     </Wrapper>
   );
 }
