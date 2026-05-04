@@ -18,7 +18,7 @@ import {
   SelectedBoundsProvider,
   SelectedColorProvider,
   SelectedFrameProvider,
-  UploadedImageProvider,
+  UploadedBlueprintProvider,
 } from "@/contexts";
 import { Theme } from "@/theme";
 import "../styles/core.css";
@@ -112,7 +112,7 @@ async function LayoutProviders({ children }: { children: React.ReactNode }) {
         <AuthProvider profile={profile}>
           <SelectedColorProvider>
             <SelectedFrameProvider>
-              <UploadedImageProvider>
+              <UploadedBlueprintProvider>
                 <CanvasProvider mainCanvasInfo={canvasInfo}>
                   <ActionPanelProvider>
                     <CanvasViewProvider>
@@ -122,7 +122,7 @@ async function LayoutProviders({ children }: { children: React.ReactNode }) {
                     </CanvasViewProvider>
                   </ActionPanelProvider>
                 </CanvasProvider>
-              </UploadedImageProvider>
+              </UploadedBlueprintProvider>
             </SelectedFrameProvider>
           </SelectedColorProvider>
         </AuthProvider>
