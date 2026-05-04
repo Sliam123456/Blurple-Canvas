@@ -18,6 +18,7 @@ import {
   SelectedBoundsProvider,
   SelectedColorProvider,
   SelectedFrameProvider,
+  UploadedImageProvider,
 } from "@/contexts";
 import { Theme } from "@/theme";
 import "../styles/core.css";
@@ -111,15 +112,17 @@ async function LayoutProviders({ children }: { children: React.ReactNode }) {
         <AuthProvider profile={profile}>
           <SelectedColorProvider>
             <SelectedFrameProvider>
-              <CanvasProvider mainCanvasInfo={canvasInfo}>
-                <ActionPanelProvider>
-                  <CanvasViewProvider>
-                    <SelectedBoundsProvider>
-                      <ThemeProvider theme={Theme}>{children}</ThemeProvider>
-                    </SelectedBoundsProvider>
-                  </CanvasViewProvider>
-                </ActionPanelProvider>
-              </CanvasProvider>
+              <UploadedImageProvider>
+                <CanvasProvider mainCanvasInfo={canvasInfo}>
+                  <ActionPanelProvider>
+                    <CanvasViewProvider>
+                      <SelectedBoundsProvider>
+                        <ThemeProvider theme={Theme}>{children}</ThemeProvider>
+                      </SelectedBoundsProvider>
+                    </CanvasViewProvider>
+                  </ActionPanelProvider>
+                </CanvasProvider>
+              </UploadedImageProvider>
             </SelectedFrameProvider>
           </SelectedColorProvider>
         </AuthProvider>

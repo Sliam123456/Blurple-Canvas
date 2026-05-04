@@ -11,6 +11,7 @@ import {
 } from "@/contexts";
 import { CANVAS_WRAPPER_CLASS_NAME } from "@/util";
 import { PixelInfoTab, PlacePixelTab } from "./tabs";
+import BlueprintTab from "./tabs/BlueprintTab";
 import FramesTab from "./tabs/FramesTab";
 
 const Wrapper = styled("div")`
@@ -47,7 +48,7 @@ const TabBar = styled("div")`
   border-radius: 0.5rem;
   display: grid;
   gap: 0.5rem;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
 `;
 
 const StyledTab = styled("button")`
@@ -117,7 +118,7 @@ export const Heading = styled("h2")`
   text-transform: uppercase;
 `;
 
-type TabKey = "look" | "place" | "frame";
+type TabKey = "look" | "place" | "frame" | "blueprint";
 
 function Tab({
   tabKey,
@@ -173,6 +174,7 @@ export default function ActionPanel() {
   const placeTabId = useId();
   const lookTabId = useId();
   const frameTabId = useId();
+  const blueprintTabId = useId();
 
   return (
     <Wrapper>
@@ -204,6 +206,15 @@ export default function ActionPanel() {
         >
           Frame
         </Tab>
+        <Tab
+          aria-controls={blueprintTabId}
+          aria-disabled={areTabsLocked && currentTab !== "blueprint"}
+          aria-selected={currentTab === "blueprint"}
+          tabKey="blueprint"
+          onSwitchTab={onSwitchTab}
+        >
+          Blueprint
+        </Tab>
       </TabBar>
       <PlacePixelTab
         active={currentTab === "place"}
@@ -220,6 +231,7 @@ export default function ActionPanel() {
         id={frameTabId}
         setTabsLocked={setAreTabsLocked}
       />
+      <BlueprintTab active={currentTab === "blueprint"} id={blueprintTabId} />
     </Wrapper>
   );
 }

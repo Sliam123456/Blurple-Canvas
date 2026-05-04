@@ -8,7 +8,7 @@ import { SlideableDrawer } from "@/components/slideable-drawer";
 
 const Wrapper = styled("main")`
   body:has(&) {
-    --action-panel-width: 19rem;
+    --action-panel-width: 25rem;
     --navbar-height: 4rem;
     column-gap: 1rem;
     row-gap: 0;
@@ -20,7 +20,6 @@ const Wrapper = styled("main")`
 
     ${({ theme }) => theme.breakpoints.up("lg")} {
       --column-gap: 2rem;
-      --action-panel-width: 23rem;
     }
   }
 

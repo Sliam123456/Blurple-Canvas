@@ -18,3 +18,7 @@ export {
   SelectedFrameProvider,
   useSelectedFrameContext,
 } from "./SelectedFrameContext";
+export {
+  UploadedImageProvider,
+  useUploadedImageContext,
+} from "./UploadedImageContext";
