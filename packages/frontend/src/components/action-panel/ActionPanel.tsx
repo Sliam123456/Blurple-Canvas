@@ -167,8 +167,8 @@ export default function ActionPanel() {
       setColor(tempColor);
     }
 
-    // hiding reticle if we are on frames tab
-    setIsReticleVisible(newTab !== "frame");
+    // hiding reticle if we are on frames or blueprint tab
+    setIsReticleVisible(!["frame", "blueprint"].includes(newTab));
   };
 
   const placeTabId = useId();
