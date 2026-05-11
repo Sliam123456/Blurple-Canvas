@@ -1,12 +1,8 @@
 import type { PixelColor } from "@blurple-canvas-web/types";
 import { styled } from "@mui/material";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button, DynamicButton } from "@/components/button";
-import {
-  useCanvasContext,
-  useSelectedBlueprintContext,
-  useSelectedBoundsContext,
-} from "@/contexts/";
+import { useCanvasContext, useSelectedBoundsContext } from "@/contexts/";
 import { usePalette } from "@/hooks";
 import type { ViewBounds } from "@/util";
 import { GetNearestPixelColor } from "@/util/colorQuantization";
@@ -54,8 +50,6 @@ export default function BlueprintTab({
   setTabsLocked,
   ...props
 }: BlueprintTabProps) {
-  const { referenceImage, setReferenceImage, bitmapImage, setBitmapImage } =
-    useSelectedBlueprintContext();
   const { canvas } = useCanvasContext();
   const {
     clearSelectedBounds,
@@ -71,8 +65,10 @@ export default function BlueprintTab({
       possibleColors.push(color.rgba);
     }
   }
-  const previewCanvasRef = useRef<HTMLCanvasElement>(null);
   const didInitBoundsRef = useRef(false);
+  const [previewCanvasRef, setPreviewCanvasRef] =
+    useState<HTMLCanvasElement | null>(null);
+  const [bitmapImage, setBitmapImage] = useState<HTMLImageElement | null>(null);
   const updateBlueprint = () => {
     if (!bitmapImage || !blueprintBounds) {
       return;
@@ -80,7 +76,6 @@ export default function BlueprintTab({
     if (BlueprintBounds === blueprintBounds) {
       return;
     }
-    BlueprintBounds = blueprintBounds;
     const bitmapCanvas = new OffscreenCanvas(canvas.width, canvas.height);
     const bitmapContext = bitmapCanvas.getContext("2d");
     if (!bitmapContext) {
@@ -88,16 +83,16 @@ export default function BlueprintTab({
     }
     bitmapContext.drawImage(
       bitmapImage,
-      BlueprintBounds.left,
-      BlueprintBounds.top,
-      BlueprintBounds.width,
-      BlueprintBounds.height,
+      blueprintBounds.left,
+      blueprintBounds.top,
+      blueprintBounds.width,
+      blueprintBounds.height,
     );
     const bitmap = bitmapContext?.getImageData(
-      BlueprintBounds.left,
-      BlueprintBounds.top,
-      BlueprintBounds.width,
-      BlueprintBounds.height,
+      blueprintBounds.left,
+      blueprintBounds.top,
+      blueprintBounds.width,
+      blueprintBounds.height,
     );
     if (!bitmap) {
       return;
@@ -118,63 +113,61 @@ export default function BlueprintTab({
         bitmapData[i + j] = newColor[j];
       }
     }
-    bitmapCanvas.convertToBlob().then((referenceBlob) => {
-      setReferenceImage(URL.createObjectURL(referenceBlob));
-      bitmapContext.putImageData(
-        bitmap,
-        BlueprintBounds.left,
-        BlueprintBounds.top,
-      );
-      const canvasWrapper = document.getElementById("canvas-image-wrapper");
-      const blueprintCanvas = new OffscreenCanvas(canvas.width, canvas.height);
-      const blueprintContext = blueprintCanvas.getContext("2d");
-      blueprintContext?.putImageData(
-        bitmap,
-        BlueprintBounds.left,
-        BlueprintBounds.top,
-      );
-      const blueprintPreview = previewCanvasRef.current;
-      if (!blueprintPreview) {
+    bitmapContext.putImageData(
+      bitmap,
+      blueprintBounds.left,
+      blueprintBounds.top,
+    );
+    const canvasWrapper = document.getElementById("canvas-image-wrapper");
+    const blueprintCanvas = new OffscreenCanvas(canvas.width, canvas.height);
+    const blueprintContext = blueprintCanvas.getContext("2d");
+    blueprintContext?.putImageData(
+      bitmap,
+      blueprintBounds.left,
+      blueprintBounds.top,
+    );
+    const blueprintPreview = previewCanvasRef;
+    if (!blueprintPreview) {
+      return;
+    }
+    BlueprintBounds = blueprintBounds;
+    const sourceImage = blueprintCanvas;
+    const blueprintPreviewTimeoutId = window.setTimeout(() => {
+      if (blueprintBounds.width === 0 || blueprintBounds.height === 0) {
         return;
       }
-      const sourceImage = blueprintCanvas;
-      const blueprintPreviewTimeoutId = window.setTimeout(() => {
-        if (blueprintBounds.width === 0 || blueprintBounds.height === 0) {
-          return;
-        }
-        drawSourceRectToCanvas(
-          blueprintPreview,
-          sourceImage,
-          {
-            x: BlueprintBounds.left,
-            y: BlueprintBounds.top,
-            width: BlueprintBounds.width,
-            height: BlueprintBounds.height,
-          },
-          BlueprintBounds.width,
-          BlueprintBounds.height,
-        );
-      }, 50);
-      for (let i = 0; i < bitmapData.length; i += 4) {
-        bitmapData[i + 3] = bitmapData[i + 3] === 0 ? 0 : 128;
-      }
-      blueprintContext?.putImageData(
-        bitmap,
-        BlueprintBounds.left,
-        BlueprintBounds.top,
+      drawSourceRectToCanvas(
+        blueprintPreview,
+        sourceImage,
+        {
+          x: BlueprintBounds.left,
+          y: BlueprintBounds.top,
+          width: BlueprintBounds.width,
+          height: BlueprintBounds.height,
+        },
+        BlueprintBounds.width,
+        BlueprintBounds.height,
       );
-      blueprintCanvas.convertToBlob().then((blueprintBlob) => {
-        let blueprint = document.getElementById(
-          "blueprint",
-        ) as HTMLImageElement;
-        if (!blueprint) {
-          blueprint = new Image();
-          blueprint.id = "blueprint";
-        }
-        blueprint.src = URL.createObjectURL(blueprintBlob);
-        canvasWrapper?.appendChild(blueprint);
-        return () => window.clearTimeout(blueprintPreviewTimeoutId);
-      });
+    }, 50);
+    for (let i = 0; i < bitmapData.length; i += 4) {
+      bitmapData[i + 3] = bitmapData[i + 3] === 0 ? 0 : 128;
+    }
+    blueprintContext?.putImageData(
+      bitmap,
+      BlueprintBounds.left,
+      BlueprintBounds.top,
+    );
+    blueprintCanvas.convertToBlob().then((blueprintBlob) => {
+      let blueprint = document.getElementById("blueprint") as HTMLImageElement;
+      if (!blueprint) {
+        blueprint = new Image();
+        blueprint.id = "blueprint";
+      }
+      blueprint.src = URL.createObjectURL(blueprintBlob);
+      canvasWrapper?.appendChild(blueprint);
+      return () => {
+        window.clearTimeout(blueprintPreviewTimeoutId);
+      };
     });
   };
   useEffect(() => {
@@ -204,28 +197,33 @@ export default function BlueprintTab({
         setCanEdit(true);
         setTabsLocked(true);
         didInitBoundsRef.current = true;
+        setBitmapImage(newBitmapImage);
       };
       newBitmapImage.src = URL.createObjectURL(BlueprintImageInput.files[0]);
-      setBitmapImage(newBitmapImage);
     };
   });
-  updateBlueprint();
+  useEffect(() => {
+    const updateBlueprintTimeoutId = window.setTimeout(() => {
+      updateBlueprint();
+    }, 50);
+    return () => {
+      window.clearTimeout(updateBlueprintTimeoutId);
+    };
+  });
   return (
     <BlueprintTabBlock active={active} {...props}>
       <FullWidthScrollView>
         <ActionPanelTabBody>
-          {referenceImage ?
+          {bitmapImage ?
             <div>
-              <Heading>Reference Image</Heading>
-              <img alt="test" src={referenceImage}></img>
               <Heading>Blueprint Preview</Heading>
               {bitmapImage ?
                 <BlueprintPreview
-                  ref={previewCanvasRef}
-                  width={Math.max(1, Math.round(BlueprintBounds.width))}
-                  height={Math.max(1, Math.round(BlueprintBounds.height))}
+                  ref={setPreviewCanvasRef}
+                  width={Math.max(1, Math.round(BlueprintBounds?.width ?? 0))}
+                  height={Math.max(1, Math.round(BlueprintBounds?.height ?? 0))}
                   style={{
-                    aspectRatio: `${Math.max(1, BlueprintBounds.width)} / ${Math.max(1, BlueprintBounds.height)}`,
+                    aspectRatio: `${Math.max(1, BlueprintBounds?.width ?? 0)} / ${Math.max(1, BlueprintBounds?.height ?? 0)}`,
                   }}
                 />
               : <p>Loading...</p>}

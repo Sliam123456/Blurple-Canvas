@@ -15,7 +15,6 @@ import {
   CanvasProvider,
   CanvasViewProvider,
   QueryClientProvider,
-  SelectedBlueprintProvider,
   SelectedBoundsProvider,
   SelectedColorProvider,
   SelectedFrameProvider,
@@ -112,17 +111,15 @@ async function LayoutProviders({ children }: { children: React.ReactNode }) {
         <AuthProvider profile={profile}>
           <SelectedColorProvider>
             <SelectedFrameProvider>
-              <SelectedBlueprintProvider>
-                <CanvasProvider mainCanvasInfo={canvasInfo}>
-                  <ActionPanelProvider>
-                    <CanvasViewProvider>
-                      <SelectedBoundsProvider>
-                        <ThemeProvider theme={Theme}>{children}</ThemeProvider>
-                      </SelectedBoundsProvider>
-                    </CanvasViewProvider>
-                  </ActionPanelProvider>
-                </CanvasProvider>
-              </SelectedBlueprintProvider>
+              <CanvasProvider mainCanvasInfo={canvasInfo}>
+                <ActionPanelProvider>
+                  <CanvasViewProvider>
+                    <SelectedBoundsProvider>
+                      <ThemeProvider theme={Theme}>{children}</ThemeProvider>
+                    </SelectedBoundsProvider>
+                  </CanvasViewProvider>
+                </ActionPanelProvider>
+              </CanvasProvider>
             </SelectedFrameProvider>
           </SelectedColorProvider>
         </AuthProvider>
