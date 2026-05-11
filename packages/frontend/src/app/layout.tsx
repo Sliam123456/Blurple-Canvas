@@ -15,10 +15,10 @@ import {
   CanvasProvider,
   CanvasViewProvider,
   QueryClientProvider,
+  SelectedBlueprintProvider,
   SelectedBoundsProvider,
   SelectedColorProvider,
   SelectedFrameProvider,
-  UploadedBlueprintProvider,
 } from "@/contexts";
 import { Theme } from "@/theme";
 import "../styles/core.css";
@@ -112,7 +112,7 @@ async function LayoutProviders({ children }: { children: React.ReactNode }) {
         <AuthProvider profile={profile}>
           <SelectedColorProvider>
             <SelectedFrameProvider>
-              <UploadedBlueprintProvider>
+              <SelectedBlueprintProvider>
                 <CanvasProvider mainCanvasInfo={canvasInfo}>
                   <ActionPanelProvider>
                     <CanvasViewProvider>
@@ -122,7 +122,7 @@ async function LayoutProviders({ children }: { children: React.ReactNode }) {
                     </CanvasViewProvider>
                   </ActionPanelProvider>
                 </CanvasProvider>
-              </UploadedBlueprintProvider>
+              </SelectedBlueprintProvider>
             </SelectedFrameProvider>
           </SelectedColorProvider>
         </AuthProvider>
