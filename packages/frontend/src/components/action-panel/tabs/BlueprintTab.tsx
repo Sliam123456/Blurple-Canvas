@@ -33,9 +33,6 @@ const BlueprintPreview = styled(PreviewCanvas)`
   height: unset;
 `;
 
-let BlueprintImageInput: HTMLInputElement;
-let BlueprintBounds: ViewBounds;
-
 interface BlueprintTabProps extends React.ComponentPropsWithRef<
   typeof BlueprintTabBlock
 > {
@@ -55,6 +52,7 @@ export default function BlueprintTab({
     clearSelectedBounds,
     setCanEdit,
     selectedBounds: blueprintBounds,
+    setSelectedBounds: setBlueprintBounds,
     setBoundsToCurrentView,
   } = useSelectedBoundsContext();
   const { data: palette } = usePalette(eventId ?? undefined);
@@ -65,7 +63,11 @@ export default function BlueprintTab({
       possibleColors.push(color.rgba);
     }
   }
+  const blueprintImageInputRef = useRef<HTMLInputElement | null>(null);
+  const drawnBlueprintBoundsRef = useRef<ViewBounds | null>(null);
   const didInitBoundsRef = useRef(false);
+  const blueprintPlacedRef = useRef(false);
+  const currentSourceRef = useRef("");
   const [previewCanvasRef, setPreviewCanvasRef] =
     useState<HTMLCanvasElement | null>(null);
   const [bitmapImage, setBitmapImage] = useState<HTMLImageElement | null>(null);
@@ -73,7 +75,10 @@ export default function BlueprintTab({
     if (!bitmapImage || !blueprintBounds) {
       return;
     }
-    if (BlueprintBounds === blueprintBounds) {
+    if (
+      drawnBlueprintBoundsRef.current === blueprintBounds &&
+      currentSourceRef.current == bitmapImage.src
+    ) {
       return;
     }
     const bitmapCanvas = new OffscreenCanvas(canvas.width, canvas.height);
@@ -126,27 +131,22 @@ export default function BlueprintTab({
       blueprintBounds.left,
       blueprintBounds.top,
     );
-    const blueprintPreview = previewCanvasRef;
-    if (!blueprintPreview) {
+    if (!previewCanvasRef) {
       return;
     }
-    BlueprintBounds = blueprintBounds;
     const sourceImage = blueprintCanvas;
     const blueprintPreviewTimeoutId = window.setTimeout(() => {
-      if (blueprintBounds.width === 0 || blueprintBounds.height === 0) {
-        return;
-      }
       drawSourceRectToCanvas(
-        blueprintPreview,
+        previewCanvasRef,
         sourceImage,
         {
-          x: BlueprintBounds.left,
-          y: BlueprintBounds.top,
-          width: BlueprintBounds.width,
-          height: BlueprintBounds.height,
+          x: blueprintBounds.left,
+          y: blueprintBounds.top,
+          width: blueprintBounds.width,
+          height: blueprintBounds.height,
         },
-        BlueprintBounds.width,
-        BlueprintBounds.height,
+        blueprintBounds.width,
+        blueprintBounds.height,
       );
     }, 50);
     for (let i = 0; i < bitmapData.length; i += 4) {
@@ -154,62 +154,64 @@ export default function BlueprintTab({
     }
     blueprintContext?.putImageData(
       bitmap,
-      BlueprintBounds.left,
-      BlueprintBounds.top,
+      blueprintBounds.left,
+      blueprintBounds.top,
     );
-    blueprintCanvas.convertToBlob().then((blueprintBlob) => {
+    blueprintCanvas.convertToBlob().then((blob) => {
       let blueprint = document.getElementById("blueprint") as HTMLImageElement;
       if (!blueprint) {
         blueprint = new Image();
         blueprint.id = "blueprint";
       }
-      blueprint.src = URL.createObjectURL(blueprintBlob);
+      blueprint.src = URL.createObjectURL(blob);
       canvasWrapper?.appendChild(blueprint);
+      drawnBlueprintBoundsRef.current = blueprintBounds;
+      currentSourceRef.current = bitmapImage.src;
       return () => {
         window.clearTimeout(blueprintPreviewTimeoutId);
       };
     });
   };
   useEffect(() => {
-    if (bitmapImage) {
-      if (didInitBoundsRef.current) {
-        return;
-      }
-      setBoundsToCurrentView(0.75); //TODO: set to current blueprint
-      setCanEdit(true);
-      setTabsLocked(true);
-      didInitBoundsRef.current = true;
+    if (blueprintImageInputRef.current) {
       return;
     }
-    BlueprintImageInput = document.createElement("input");
+    let BlueprintImageInput: HTMLInputElement = document.createElement("input");
     BlueprintImageInput.type = "file";
     BlueprintImageInput.accept = "image/*";
     BlueprintImageInput.onchange = () => {
-      if (!BlueprintImageInput.files) {
+      if (!BlueprintImageInput.files?.[0]) {
         return;
       }
       const newBitmapImage = new Image();
       newBitmapImage.onload = () => {
-        if (didInitBoundsRef.current) {
-          return;
+        if (!didInitBoundsRef.current) {
+          setBoundsToCurrentView(0.75);
+          setCanEdit(true);
+          setTabsLocked(true);
+          didInitBoundsRef.current = true;
+          blueprintPlacedRef.current = false;
         }
-        setBoundsToCurrentView(0.75);
-        setCanEdit(true);
-        setTabsLocked(true);
-        didInitBoundsRef.current = true;
         setBitmapImage(newBitmapImage);
       };
       newBitmapImage.src = URL.createObjectURL(BlueprintImageInput.files[0]);
     };
+    blueprintImageInputRef.current = BlueprintImageInput;
   });
   useEffect(() => {
     const updateBlueprintTimeoutId = window.setTimeout(() => {
-      updateBlueprint();
+      if (!blueprintPlacedRef.current) {
+        updateBlueprint();
+      }
     }, 50);
     return () => {
       window.clearTimeout(updateBlueprintTimeoutId);
     };
   });
+  const trueBlueprintBounds =
+    blueprintPlacedRef.current ?
+      drawnBlueprintBoundsRef.current
+    : blueprintBounds;
   return (
     <BlueprintTabBlock active={active} {...props}>
       <FullWidthScrollView>
@@ -217,24 +219,25 @@ export default function BlueprintTab({
           {bitmapImage ?
             <div>
               <Heading>Blueprint Preview</Heading>
-              {bitmapImage ?
-                <BlueprintPreview
-                  ref={setPreviewCanvasRef}
-                  width={Math.max(1, Math.round(BlueprintBounds?.width ?? 0))}
-                  height={Math.max(1, Math.round(BlueprintBounds?.height ?? 0))}
-                  style={{
-                    aspectRatio: `${Math.max(1, BlueprintBounds?.width ?? 0)} / ${Math.max(1, BlueprintBounds?.height ?? 0)}`,
-                  }}
-                />
-              : <p>Loading...</p>}
+              <BlueprintPreview
+                ref={setPreviewCanvasRef}
+                width={Math.max(1, Math.round(trueBlueprintBounds?.width ?? 0))}
+                height={Math.max(
+                  1,
+                  Math.round(trueBlueprintBounds?.height ?? 0),
+                )}
+                style={{
+                  aspectRatio: `${Math.max(1, trueBlueprintBounds?.width ?? 0)} / ${Math.max(1, trueBlueprintBounds?.height ?? 0)}`,
+                }}
+              />
               <Heading>Blueprint Coordinates</Heading>
-              {blueprintBounds ?
+              {trueBlueprintBounds ?
                 <div>
                   <CoordsWrapper>
-                    <code>w: {blueprintBounds.width}</code>
-                    <code>h: {blueprintBounds.height}</code>
-                    <code>x: {blueprintBounds.left}</code>
-                    <code>y: {blueprintBounds.top}</code>
+                    <code>w: {trueBlueprintBounds.width}</code>
+                    <code>h: {trueBlueprintBounds.height}</code>
+                    <code>x: {trueBlueprintBounds.left}</code>
+                    <code>y: {trueBlueprintBounds.top}</code>
                   </CoordsWrapper>
                 </div>
               : <p>No location selected</p>}
@@ -244,22 +247,37 @@ export default function BlueprintTab({
       </FullWidthScrollView>
       <ActionPanelTabBody>
         {bitmapImage ?
-          blueprintBounds ?
-            <DynamicButton
-              color={null}
-              onAction={() => {
-                clearSelectedBounds();
-                setTabsLocked(false);
-              }}
-            >
-              Place Blueprint
-            </DynamicButton>
+          trueBlueprintBounds ?
+            blueprintPlacedRef.current ?
+              <DynamicButton
+                color={null}
+                onAction={() => {
+                  setBlueprintBounds(trueBlueprintBounds);
+                  setCanEdit(true);
+                  setTabsLocked(true);
+                  blueprintPlacedRef.current = false;
+                }}
+              >
+                Move Blueprint
+              </DynamicButton>
+            : <DynamicButton
+                color={null}
+                onAction={() => {
+                  clearSelectedBounds();
+                  setCanEdit(false);
+                  setTabsLocked(false);
+                  blueprintPlacedRef.current = true;
+                }}
+              >
+                Place Blueprint
+              </DynamicButton>
+
           : <Button disabled>Select a location</Button>
         : <Button disabled>Upload a blueprint</Button>}
         <DynamicButton
           color={null}
           onAction={() => {
-            BlueprintImageInput.click();
+            blueprintImageInputRef.current?.click();
           }}
         >
           Upload Image
