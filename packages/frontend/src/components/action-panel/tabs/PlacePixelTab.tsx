@@ -11,7 +11,7 @@ import { usePalette, usePlaySound } from "@/hooks";
 import { getUserGuildIds } from "@/util";
 import { DynamicAnchorButton, PlacePixelButton } from "../../button";
 import { InteractiveSwatch } from "../../swatch";
-import { Heading } from "../ActionPanel";
+import ActionPanelPrimitives from "../primitives";
 import {
   ActionPanelTabBody,
   FullWidthScrollView,
@@ -46,7 +46,7 @@ const SwatchSkeleton = styled(Skeleton)`
   height: auto;
 `;
 
-function partitionPalette(palette: Palette): [Palette, Palette] {
+export function partitionPaletteByOwner(palette: Palette): [Palette, Palette] {
   const mainColors: Palette = [];
   const partnerColors: Palette = [];
   for (const color of palette) {
@@ -77,7 +77,7 @@ export default function PlacePixelTab({
     enabled: active,
   });
   const [mainColors, partnerColors] = useMemo(
-    () => (palette !== undefined ? partitionPalette(palette) : []),
+    () => (palette !== undefined ? partitionPaletteByOwner(palette) : []),
     [palette],
   );
   // Boolean to hide certain elements when the tab is too small
@@ -184,7 +184,9 @@ function NamedPalette({ colors, name }: NamedPaletteProps) {
   const isLoading = colors === undefined;
   return (
     <>
-      <Heading>{name}</Heading>
+      <ActionPanelPrimitives.SectionHeading>
+        {name}
+      </ActionPanelPrimitives.SectionHeading>
       <Fieldset>
         {isLoading ?
           Array.from({ length: 12 }).map((_, i) => (

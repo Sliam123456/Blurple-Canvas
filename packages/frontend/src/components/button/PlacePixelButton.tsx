@@ -11,6 +11,7 @@ import {
   useSelectedColorContext,
 } from "@/contexts";
 import { usePlayCooldownExpirySound, usePlaySound } from "@/hooks";
+import { durationFormatNarrow } from "@/util/intl";
 import { Button } from "./Button";
 import ButtonSupplement from "./ButtonSupplement";
 import DynamicButton from "./DynamicButton";
@@ -22,11 +23,6 @@ const Time = styled("time")`
 interface PlacePixelButtonProps {
   isVerbose: boolean;
 }
-
-const durationFormat =
-  "DurationFormat" in Intl ?
-    new Intl.DurationFormat("en-US", { style: "narrow" })
-  : undefined;
 
 export default function PlacePixelButton({ isVerbose }: PlacePixelButtonProps) {
   const { canvas } = useCanvasContext();
@@ -124,7 +120,7 @@ export default function PlacePixelButton({ isVerbose }: PlacePixelButtonProps) {
       <Button variant="contained" disabled>
         On cooldown (
         <Time>
-          {durationFormat?.format({ seconds: timeLeft }) ?? (
+          {durationFormatNarrow?.format({ seconds: timeLeft }) ?? (
             <>{timeLeft}&nbsp;s</>
           )}
         </Time>
