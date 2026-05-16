@@ -10,7 +10,7 @@ import {
   drawSourceRectToCanvas,
   PreviewCanvas,
 } from "../../frames/FramePreview";
-import { Heading } from "../ActionPanel";
+import ActionPanelPrimitives from "../primitives";
 import {
   ActionPanelTabBody,
   FullWidthScrollView,
@@ -49,11 +49,12 @@ export default function BlueprintTab({
 }: BlueprintTabProps) {
   const { canvas } = useCanvasContext();
   const {
-    clearSelectedBounds,
+    resetSelectedBounds,
     setCanEdit,
     selectedBounds: blueprintBounds,
     setSelectedBounds: setBlueprintBounds,
     setBoundsToCurrentView,
+    setShowSelectedBounds,
   } = useSelectedBoundsContext();
   const { data: palette } = usePalette(eventId ?? undefined);
   const possibleColors: PixelColor[] = [];
@@ -77,7 +78,7 @@ export default function BlueprintTab({
     }
     if (
       drawnBlueprintBoundsRef.current === blueprintBounds &&
-      currentSourceRef.current == bitmapImage.src
+      currentSourceRef.current === bitmapImage.src
     ) {
       return;
     }
@@ -176,7 +177,8 @@ export default function BlueprintTab({
     if (blueprintImageInputRef.current) {
       return;
     }
-    let BlueprintImageInput: HTMLInputElement = document.createElement("input");
+    const BlueprintImageInput: HTMLInputElement =
+      document.createElement("input");
     BlueprintImageInput.type = "file";
     BlueprintImageInput.accept = "image/*";
     BlueprintImageInput.onchange = () => {
@@ -188,6 +190,7 @@ export default function BlueprintTab({
         if (!didInitBoundsRef.current) {
           setBoundsToCurrentView(0.75);
           setCanEdit(true);
+          setShowSelectedBounds(true);
           setTabsLocked(true);
           didInitBoundsRef.current = true;
           blueprintPlacedRef.current = false;
@@ -218,7 +221,9 @@ export default function BlueprintTab({
         <ActionPanelTabBody>
           {bitmapImage ?
             <div>
-              <Heading>Blueprint Preview</Heading>
+              <ActionPanelPrimitives.SectionHeading>
+                Blueprint Preview
+              </ActionPanelPrimitives.SectionHeading>
               <BlueprintPreview
                 ref={setPreviewCanvasRef}
                 width={Math.max(1, Math.round(trueBlueprintBounds?.width ?? 0))}
@@ -230,7 +235,9 @@ export default function BlueprintTab({
                   aspectRatio: `${Math.max(1, trueBlueprintBounds?.width ?? 0)} / ${Math.max(1, trueBlueprintBounds?.height ?? 0)}`,
                 }}
               />
-              <Heading>Blueprint Coordinates</Heading>
+              <ActionPanelPrimitives.SectionHeading>
+                Blueprint Coordinates
+              </ActionPanelPrimitives.SectionHeading>
               {trueBlueprintBounds ?
                 <div>
                   <CoordsWrapper>
@@ -254,6 +261,7 @@ export default function BlueprintTab({
                 onAction={() => {
                   setBlueprintBounds(trueBlueprintBounds);
                   setCanEdit(true);
+                  setShowSelectedBounds(true);
                   setTabsLocked(true);
                   blueprintPlacedRef.current = false;
                 }}
@@ -263,8 +271,9 @@ export default function BlueprintTab({
             : <DynamicButton
                 color={null}
                 onAction={() => {
-                  clearSelectedBounds();
+                  resetSelectedBounds();
                   setCanEdit(false);
+                  setShowSelectedBounds(false);
                   setTabsLocked(false);
                   blueprintPlacedRef.current = true;
                 }}

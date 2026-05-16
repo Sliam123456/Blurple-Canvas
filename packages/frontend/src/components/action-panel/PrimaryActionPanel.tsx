@@ -8,10 +8,10 @@ import {
   useSelectedColorContext,
 } from "@/contexts";
 import ActionPanelPrimitives from "./primitives";
-import { PixelInfoTab, PlacePixelTab } from "./tabs";
+import { BlueprintTab, PixelInfoTab, PlacePixelTab } from "./tabs";
 import FramesTab from "./tabs/FramesTab";
 
-type TabKey = "look" | "place" | "frame";
+type TabKey = "look" | "place" | "frame" | "blueprint";
 
 export default function PrimaryActionPanel() {
   const {
@@ -40,13 +40,14 @@ export default function PrimaryActionPanel() {
       setColor(tempColor);
     }
 
-    // hiding reticle if we are on frames tab
-    setIsReticleVisible(newTab !== "frame");
+    // hiding reticle if we are on frames or blueprint tab
+    setIsReticleVisible(!["frame", "blueprint"].includes(newTab));
   };
 
   const placeTabId = useId();
   const lookTabId = useId();
   const frameTabId = useId();
+  const blueprintTabId = useId();
 
   return (
     <ActionPanelPrimitives.Root>
@@ -78,6 +79,15 @@ export default function PrimaryActionPanel() {
         >
           Frame
         </ActionPanelPrimitives.GenericTab>
+        <ActionPanelPrimitives.GenericTab
+          aria-controls={blueprintTabId}
+          aria-disabled={areTabsLocked && currentTab !== "blueprint"}
+          aria-selected={currentTab === "blueprint"}
+          tabKey="blueprint"
+          onSwitchTab={onSwitchTab}
+        >
+          Blueprint
+        </ActionPanelPrimitives.GenericTab>
       </ActionPanelPrimitives.TabBar>
       <PlacePixelTab
         active={currentTab === "place"}
@@ -92,6 +102,12 @@ export default function PrimaryActionPanel() {
       <FramesTab
         active={currentTab === "frame"}
         id={frameTabId}
+        setTabsLocked={setAreTabsLocked}
+      />
+      <BlueprintTab
+        active={currentTab === "blueprint"}
+        eventId={canvas.eventId}
+        id={blueprintTabId}
         setTabsLocked={setAreTabsLocked}
       />
     </ActionPanelPrimitives.Root>
