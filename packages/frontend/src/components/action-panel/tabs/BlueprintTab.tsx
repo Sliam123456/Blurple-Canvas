@@ -1,6 +1,7 @@
 import type { PixelColor } from "@blurple-canvas-web/types";
 import { styled } from "@mui/material";
 import { useEffect, useRef, useState } from "react";
+import useLocalStorage from "@/app/settings/useLocalStorage";
 import { Button, DynamicButton } from "@/components/button";
 import { useCanvasContext, useSelectedBoundsContext } from "@/contexts/";
 import { usePalette } from "@/hooks";
@@ -68,10 +69,13 @@ export default function BlueprintTab({
   const drawnBlueprintBoundsRef = useRef<ViewBounds | null>(null);
   const didInitBoundsRef = useRef(false);
   const blueprintPlacedRef = useRef(false);
+  const blueprintFromStoredRef = useRef(false);
   const currentSourceRef = useRef("");
   const [previewCanvasRef, setPreviewCanvasRef] =
     useState<HTMLCanvasElement | null>(null);
   const [bitmapImage, setBitmapImage] = useState<HTMLImageElement | null>(null);
+  const [storedURL, setStoredURL] = useLocalStorage("blueprint/URL");
+  const [storedBounds, setStoredBounds] = useLocalStorage("blueprint/bounds");
   const updateBlueprint = () => {
     if (!bitmapImage || !blueprintBounds) {
       return;
@@ -91,14 +95,14 @@ export default function BlueprintTab({
       bitmapImage,
       blueprintBounds.left,
       blueprintBounds.top,
-      blueprintBounds.width,
-      blueprintBounds.height,
+      blueprintBounds.right - blueprintBounds.left,
+      blueprintBounds.bottom - blueprintBounds.top,
     );
     const bitmap = bitmapContext?.getImageData(
       blueprintBounds.left,
       blueprintBounds.top,
-      blueprintBounds.width,
-      blueprintBounds.height,
+      blueprintBounds.right - blueprintBounds.left,
+      blueprintBounds.bottom - blueprintBounds.top,
     );
     if (!bitmap) {
       return;
@@ -143,11 +147,11 @@ export default function BlueprintTab({
         {
           x: blueprintBounds.left,
           y: blueprintBounds.top,
-          width: blueprintBounds.width,
-          height: blueprintBounds.height,
+          width: blueprintBounds.right - blueprintBounds.left,
+          height: blueprintBounds.bottom - blueprintBounds.top,
         },
-        blueprintBounds.width,
-        blueprintBounds.height,
+        blueprintBounds.right - blueprintBounds.left,
+        blueprintBounds.bottom - blueprintBounds.top,
       );
     }, 50);
     for (let i = 0; i < bitmapData.length; i += 4) {
@@ -167,6 +171,14 @@ export default function BlueprintTab({
       blueprint.src = URL.createObjectURL(blob);
       canvasWrapper?.appendChild(blueprint);
       drawnBlueprintBoundsRef.current = blueprintBounds;
+      setStoredBounds([
+        blueprintBounds.width,
+        blueprintBounds.height,
+        blueprintBounds.left,
+        blueprintBounds.top,
+        blueprintBounds.right,
+        blueprintBounds.bottom,
+      ]);
       currentSourceRef.current = bitmapImage.src;
       return () => {
         window.clearTimeout(blueprintPreviewTimeoutId);
@@ -174,9 +186,37 @@ export default function BlueprintTab({
     });
   };
   useEffect(() => {
-    if (blueprintImageInputRef.current) {
+    if (blueprintImageInputRef.current || storedURL === undefined) {
       return;
     }
+    const newBitmapImage = new Image();
+    newBitmapImage.onload = () => {
+      if (!didInitBoundsRef.current) {
+        didInitBoundsRef.current = true;
+        if (storedBounds) {
+          setBlueprintBounds({
+            width: storedBounds[0],
+            height: storedBounds[1],
+            left: storedBounds[2],
+            top: storedBounds[3],
+            right: storedBounds[4],
+            bottom: storedBounds[5],
+          });
+          blueprintFromStoredRef.current = true;
+          setBitmapImage(newBitmapImage);
+          return;
+        } else {
+          setBoundsToCurrentView(0.75);
+        }
+      } else {
+        setBlueprintBounds(drawnBlueprintBoundsRef.current);
+      }
+      setCanEdit(true);
+      setShowSelectedBounds(true);
+      setTabsLocked(true);
+      blueprintPlacedRef.current = false;
+      setBitmapImage(newBitmapImage);
+    };
     const BlueprintImageInput: HTMLInputElement =
       document.createElement("input");
     BlueprintImageInput.type = "file";
@@ -185,21 +225,16 @@ export default function BlueprintTab({
       if (!BlueprintImageInput.files?.[0]) {
         return;
       }
-      const newBitmapImage = new Image();
-      newBitmapImage.onload = () => {
-        if (!didInitBoundsRef.current) {
-          setBoundsToCurrentView(0.75);
-          setCanEdit(true);
-          setShowSelectedBounds(true);
-          setTabsLocked(true);
-          didInitBoundsRef.current = true;
-          blueprintPlacedRef.current = false;
-        }
-        setBitmapImage(newBitmapImage);
-      };
+      if (newBitmapImage.src) {
+        URL.revokeObjectURL(newBitmapImage.src);
+      }
       newBitmapImage.src = URL.createObjectURL(BlueprintImageInput.files[0]);
+      setStoredURL(newBitmapImage.src);
     };
     blueprintImageInputRef.current = BlueprintImageInput;
+    if (storedURL) {
+      newBitmapImage.src = storedURL;
+    }
   });
   useEffect(() => {
     const updateBlueprintTimeoutId = window.setTimeout(() => {
@@ -226,13 +261,19 @@ export default function BlueprintTab({
               </ActionPanelPrimitives.SectionHeading>
               <BlueprintPreview
                 ref={setPreviewCanvasRef}
-                width={Math.max(1, Math.round(trueBlueprintBounds?.width ?? 0))}
+                width={Math.max(
+                  1,
+                  Math.round(
+                    (trueBlueprintBounds?.right ?? 0) -
+                      (trueBlueprintBounds?.left ?? 0),
+                  ),
+                )}
                 height={Math.max(
                   1,
                   Math.round(trueBlueprintBounds?.height ?? 0),
                 )}
                 style={{
-                  aspectRatio: `${Math.max(1, trueBlueprintBounds?.width ?? 0)} / ${Math.max(1, trueBlueprintBounds?.height ?? 0)}`,
+                  aspectRatio: `${Math.max(1, (trueBlueprintBounds?.right ?? 0) - (trueBlueprintBounds?.left ?? 0))} / ${Math.max(1, (trueBlueprintBounds?.bottom ?? 0) - (trueBlueprintBounds?.top ?? 0))}`,
                 }}
               />
               <ActionPanelPrimitives.SectionHeading>
@@ -241,8 +282,16 @@ export default function BlueprintTab({
               {trueBlueprintBounds ?
                 <div>
                   <CoordsWrapper>
-                    <code>w: {trueBlueprintBounds.width}</code>
-                    <code>h: {trueBlueprintBounds.height}</code>
+                    <code>
+                      w:{" "}
+                      {(trueBlueprintBounds?.right ?? 0) -
+                        (trueBlueprintBounds?.left ?? 0)}
+                    </code>
+                    <code>
+                      h:{" "}
+                      {(trueBlueprintBounds?.bottom ?? 0) -
+                        (trueBlueprintBounds?.top ?? 0)}
+                    </code>
                     <code>x: {trueBlueprintBounds.left}</code>
                     <code>y: {trueBlueprintBounds.top}</code>
                   </CoordsWrapper>
@@ -255,7 +304,7 @@ export default function BlueprintTab({
       <ActionPanelTabBody>
         {bitmapImage ?
           trueBlueprintBounds ?
-            blueprintPlacedRef.current ?
+            blueprintPlacedRef.current || blueprintFromStoredRef.current ?
               <DynamicButton
                 color={null}
                 onAction={() => {
@@ -264,6 +313,7 @@ export default function BlueprintTab({
                   setShowSelectedBounds(true);
                   setTabsLocked(true);
                   blueprintPlacedRef.current = false;
+                  blueprintFromStoredRef.current = false;
                 }}
               >
                 Move Blueprint
