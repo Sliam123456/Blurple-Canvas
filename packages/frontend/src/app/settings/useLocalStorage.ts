@@ -25,6 +25,7 @@ interface LocalStorageValueTypes extends Satisfies<
     "notices/dismissed": string[];
     "blueprint/URL": string | null;
     "blueprint/bounds": number[] | null;
+    "blueprint/opacity": number;
   },
   { [key: string]: JsonDataType }
 > {}
@@ -37,6 +38,7 @@ const defaults = {
   "notices/dismissed": [] as string[],
   "blueprint/URL": null,
   "blueprint/bounds": null,
+  "blueprint/opacity": 128,
 } as const satisfies LocalStorageValueTypes;
 
 export default function useLocalStorage<Key extends LocalStorageKey>(

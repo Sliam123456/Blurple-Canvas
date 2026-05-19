@@ -3,6 +3,7 @@ import { styled } from "@mui/material";
 import { useEffect, useRef, useState } from "react";
 import useLocalStorage from "@/app/settings/useLocalStorage";
 import { Button, DynamicButton } from "@/components/button";
+import Slider from "@/components/Slider";
 import { useCanvasContext, useSelectedBoundsContext } from "@/contexts/";
 import { usePalette } from "@/hooks";
 import type { ViewBounds } from "@/util";
@@ -71,11 +72,20 @@ export default function BlueprintTab({
   const blueprintPlacedRef = useRef(false);
   const blueprintFromStoredRef = useRef(false);
   const currentSourceRef = useRef("");
+  const [opacity, setOpacity] = useState(128);
+  const drawnOpacity = useRef(0);
+  const drawnBitmap = useRef<ImageDataArray | null>(null);
   const [previewCanvasRef, setPreviewCanvasRef] =
     useState<HTMLCanvasElement | null>(null);
   const [bitmapImage, setBitmapImage] = useState<HTMLImageElement | null>(null);
   const [storedURL, setStoredURL] = useLocalStorage("blueprint/URL");
   const [storedBounds, setStoredBounds] = useLocalStorage("blueprint/bounds");
+  const [storedOpacity, setStoredOpacity] =
+    useLocalStorage("blueprint/opacity");
+  const trueBlueprintBounds =
+    blueprintPlacedRef.current ?
+      drawnBlueprintBoundsRef.current
+    : blueprintBounds;
   const updateBlueprint = () => {
     if (!bitmapImage || !blueprintBounds) {
       return;
@@ -84,6 +94,49 @@ export default function BlueprintTab({
       drawnBlueprintBoundsRef.current === blueprintBounds &&
       currentSourceRef.current === bitmapImage.src
     ) {
+      if (drawnOpacity.current !== opacity) {
+        if (!drawnBitmap.current || !trueBlueprintBounds) {
+          return;
+        }
+        const blueprint = document.getElementById(
+          "blueprint",
+        ) as HTMLImageElement;
+        const blueprintCanvas = new OffscreenCanvas(
+          canvas.width,
+          canvas.height,
+        );
+        const blueprintContext = blueprintCanvas.getContext("2d");
+        blueprintContext?.drawImage(blueprint, 0, 0);
+        const blueprintData = blueprintContext?.getImageData(
+          trueBlueprintBounds.left,
+          trueBlueprintBounds.top,
+          trueBlueprintBounds.right - trueBlueprintBounds.left,
+          trueBlueprintBounds.bottom - trueBlueprintBounds.top,
+        );
+        if (!blueprintData) {
+          return;
+        }
+        for (let i = 0; i < drawnBitmap.current.length; i++) {
+          if (i % 4 !== 3) {
+            blueprintData.data[i] = drawnBitmap.current[i];
+            continue;
+          }
+          blueprintData.data[i] = drawnBitmap.current[i] === 0 ? 0 : opacity;
+        }
+        blueprintContext?.putImageData(
+          blueprintData,
+          trueBlueprintBounds.left,
+          trueBlueprintBounds.top,
+        );
+        blueprintCanvas.convertToBlob().then((blob) => {
+          if (blueprint.src) {
+            URL.revokeObjectURL(blueprint.src);
+          }
+          blueprint.src = URL.createObjectURL(blob);
+          drawnOpacity.current = opacity;
+          setStoredOpacity(opacity);
+        });
+      }
       return;
     }
     const bitmapCanvas = new OffscreenCanvas(canvas.width, canvas.height);
@@ -139,7 +192,8 @@ export default function BlueprintTab({
     if (!previewCanvasRef) {
       return;
     }
-    const sourceImage = blueprintCanvas;
+    drawnBitmap.current = bitmapData;
+    const sourceImage = blueprintCanvas.transferToImageBitmap();
     const blueprintPreviewTimeoutId = window.setTimeout(() => {
       drawSourceRectToCanvas(
         previewCanvasRef,
@@ -155,8 +209,10 @@ export default function BlueprintTab({
       );
     }, 50);
     for (let i = 0; i < bitmapData.length; i += 4) {
-      bitmapData[i + 3] = bitmapData[i + 3] === 0 ? 0 : 128;
+      bitmapData[i + 3] = bitmapData[i + 3] === 0 ? 0 : opacity;
     }
+    drawnOpacity.current = opacity;
+    setStoredOpacity(opacity);
     blueprintContext?.putImageData(
       bitmap,
       blueprintBounds.left,
@@ -167,6 +223,8 @@ export default function BlueprintTab({
       if (!blueprint) {
         blueprint = new Image();
         blueprint.id = "blueprint";
+      } else if (blueprint.src) {
+        URL.revokeObjectURL(blueprint.src);
       }
       blueprint.src = URL.createObjectURL(blob);
       canvasWrapper?.appendChild(blueprint);
@@ -193,6 +251,9 @@ export default function BlueprintTab({
     newBitmapImage.onload = () => {
       if (!didInitBoundsRef.current) {
         didInitBoundsRef.current = true;
+        if (storedOpacity) {
+          setOpacity(storedOpacity);
+        }
         if (storedBounds) {
           setBlueprintBounds({
             width: storedBounds[0],
@@ -216,6 +277,19 @@ export default function BlueprintTab({
       setTabsLocked(true);
       blueprintPlacedRef.current = false;
       setBitmapImage(newBitmapImage);
+      const storedImage = new OffscreenCanvas(
+        newBitmapImage.width,
+        newBitmapImage.height,
+      );
+      const storedImageContext = storedImage.getContext("2d");
+      storedImageContext?.drawImage(newBitmapImage, 0, 0);
+      storedImage.convertToBlob().then((blob) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setStoredURL(reader.result?.toString() ?? null);
+        };
+        reader.readAsDataURL(blob);
+      });
     };
     const BlueprintImageInput: HTMLInputElement =
       document.createElement("input");
@@ -225,11 +299,11 @@ export default function BlueprintTab({
       if (!BlueprintImageInput.files?.[0]) {
         return;
       }
+      blueprintFromStoredRef.current = false;
       if (newBitmapImage.src) {
         URL.revokeObjectURL(newBitmapImage.src);
       }
       newBitmapImage.src = URL.createObjectURL(BlueprintImageInput.files[0]);
-      setStoredURL(newBitmapImage.src);
     };
     blueprintImageInputRef.current = BlueprintImageInput;
     if (storedURL) {
@@ -246,10 +320,6 @@ export default function BlueprintTab({
       window.clearTimeout(updateBlueprintTimeoutId);
     };
   });
-  const trueBlueprintBounds =
-    blueprintPlacedRef.current ?
-      drawnBlueprintBoundsRef.current
-    : blueprintBounds;
   return (
     <BlueprintTabBlock active={active} {...props}>
       <FullWidthScrollView>
@@ -295,6 +365,15 @@ export default function BlueprintTab({
                     <code>x: {trueBlueprintBounds.left}</code>
                     <code>y: {trueBlueprintBounds.top}</code>
                   </CoordsWrapper>
+                  <Slider
+                    label={<>Opacity:</>}
+                    min={1}
+                    max={255}
+                    value={opacity}
+                    onValueChange={(value) => {
+                      setOpacity(value);
+                    }}
+                  />
                 </div>
               : <p>No location selected</p>}
             </div>
