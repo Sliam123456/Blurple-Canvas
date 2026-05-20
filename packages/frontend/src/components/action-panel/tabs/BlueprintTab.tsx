@@ -5,7 +5,10 @@ import {
   DialogContent,
   DialogContentText,
   DialogTitle,
+  InputLabel,
   styled,
+  ToggleButton,
+  ToggleButtonGroup,
 } from "@mui/material";
 import { useEffect, useRef, useState } from "react";
 import useLocalStorage from "@/app/settings/useLocalStorage";
@@ -38,6 +41,12 @@ const CoordsWrapper = styled("div")`
   padding: 0.5rem;
 `;
 
+const SettingsContainer = styled("div")`
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+`;
+
 const BlueprintPreview = styled(PreviewCanvas)`
   height: unset;
 `;
@@ -66,13 +75,6 @@ export default function BlueprintTab({
     setShowSelectedBounds,
   } = useSelectedBoundsContext();
   const { data: palette } = usePalette(eventId ?? undefined);
-  const possibleColors: PixelColor[] = [];
-  for (const color of palette ?? []) {
-    //TODO: User toggling of global only/all colors
-    if (color.rgba[3] === 255) {
-      possibleColors.push(color.rgba);
-    }
-  }
   const blueprintImageInputRef = useRef<HTMLInputElement | null>(null);
   const drawnBlueprintBoundsRef = useRef<ViewBounds | null>(null);
   const didInitBoundsRef = useRef(false);
@@ -82,6 +84,8 @@ export default function BlueprintTab({
   const [opacity, setOpacity] = useState(128);
   const drawnOpacity = useRef(0);
   const drawnBitmap = useRef<ImageDataArray | null>(null);
+  const [useAllColors, setUseAllColors] = useState("all");
+  const drawnColors = useRef("all");
   const [previewCanvasRef, setPreviewCanvasRef] =
     useState<HTMLCanvasElement | null>(null);
   const [bitmapImage, setBitmapImage] = useState<HTMLImageElement | null>(null);
@@ -89,11 +93,18 @@ export default function BlueprintTab({
   const [storedBounds, setStoredBounds] = useLocalStorage("blueprint/bounds");
   const [storedOpacity, setStoredOpacity] =
     useLocalStorage("blueprint/opacity");
+  const [storedColors, setStoredColors] = useLocalStorage("blueprint/colors");
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const trueBlueprintBounds =
     blueprintPlacedRef.current ?
       drawnBlueprintBoundsRef.current
     : blueprintBounds;
+  const possibleColors: PixelColor[] = [];
+  for (const color of palette ?? []) {
+    if (color.rgba[3] === 255 && (color.global || useAllColors === "all")) {
+      possibleColors.push(color.rgba);
+    }
+  }
   const updateOpacity = () => {
     if (drawnOpacity.current === opacity) {
       return;
@@ -141,7 +152,8 @@ export default function BlueprintTab({
     }
     if (
       drawnBlueprintBoundsRef.current === blueprintBounds &&
-      currentSourceRef.current === bitmapImage.src
+      currentSourceRef.current === bitmapImage.src &&
+      drawnColors.current === useAllColors
     ) {
       return;
     }
@@ -182,6 +194,8 @@ export default function BlueprintTab({
         bitmapData[i + j] = newColor[j];
       }
     }
+    drawnColors.current = useAllColors;
+    setStoredColors(useAllColors);
     bitmapContext.putImageData(
       bitmap,
       blueprintBounds.left,
@@ -264,6 +278,9 @@ export default function BlueprintTab({
         if (storedOpacity) {
           setOpacity(storedOpacity);
         }
+        if (storedColors) {
+          setUseAllColors(storedColors);
+        }
         if (storedBounds) {
           setBlueprintBounds({
             width: storedBounds[0],
@@ -322,7 +339,7 @@ export default function BlueprintTab({
   });
   useEffect(() => {
     const updateBlueprintTimeoutId = window.setTimeout(() => {
-      if (!blueprintPlacedRef.current) {
+      if (!blueprintPlacedRef.current || drawnColors.current !== useAllColors) {
         updateBlueprint();
       }
       updateOpacity();
@@ -389,6 +406,22 @@ export default function BlueprintTab({
               : <p>No location selected</p>}
             </div>
           : <p>No image uploaded</p>}
+          <SettingsContainer>
+            <InputLabel>Colors used</InputLabel>
+            <ToggleButtonGroup
+              color="primary"
+              value={useAllColors}
+              exclusive
+              onChange={(_, value) => {
+                if (value) {
+                  setUseAllColors(value);
+                }
+              }}
+            >
+              <ToggleButton value="main">Main</ToggleButton>
+              <ToggleButton value="all">All</ToggleButton>
+            </ToggleButtonGroup>
+          </SettingsContainer>
         </ActionPanelTabBody>
       </FullWidthScrollView>
       <ActionPanelTabBody>
