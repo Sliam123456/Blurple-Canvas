@@ -14,7 +14,11 @@ import { useEffect, useRef, useState } from "react";
 import useLocalStorage from "@/app/settings/useLocalStorage";
 import { Button, DynamicButton } from "@/components/button";
 import Slider from "@/components/Slider";
-import { useCanvasContext, useSelectedBoundsContext } from "@/contexts/";
+import {
+  useCanvasContext,
+  useSelectedBlueprintContext,
+  useSelectedBoundsContext,
+} from "@/contexts/";
 import { usePalette } from "@/hooks";
 import { hexStringToPixelColor, type ViewBounds } from "@/util";
 import { GetNearestPixelColor } from "@/util/colorQuantization";
@@ -74,6 +78,7 @@ export default function BlueprintTab({
     setBoundsToCurrentView,
     setShowSelectedBounds,
   } = useSelectedBoundsContext();
+  const { setColorMapping } = useSelectedBlueprintContext();
   const { data: palette } = usePalette(eventId ?? undefined);
   const blueprintImageInputRef = useRef<HTMLInputElement | null>(null);
   const drawnBlueprintBoundsRef = useRef<ViewBounds | null>(null);
@@ -179,6 +184,7 @@ export default function BlueprintTab({
       return;
     }
     const bitmapData = bitmap.data;
+    const newColorMapping: { [pixel: number]: PixelColor } = {};
     for (let i = 0; i < bitmapData.length; i += 4) {
       if (bitmapData[i + 3] === 0) {
         continue;
@@ -190,10 +196,18 @@ export default function BlueprintTab({
         bitmapData[i + 3],
       ];
       const newColor = GetNearestPixelColor(possibleColors, pixelColor);
+      newColorMapping[
+        ((i / 4) % bitmap.width) +
+          blueprintBounds.left +
+          (Math.floor(i / 4 / bitmap.width) + blueprintBounds.top) *
+            canvas.width +
+          1
+      ] = newColor;
       for (let j = 0; j < 4; j++) {
         bitmapData[i + j] = newColor[j];
       }
     }
+    setColorMapping(newColorMapping);
     drawnColors.current = useAllColors;
     setStoredColors(useAllColors);
     bitmapContext.putImageData(

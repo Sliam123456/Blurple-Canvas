@@ -5,6 +5,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   useAuthContext,
   useCanvasContext,
+  useCanvasViewContext,
+  useSelectedBlueprintContext,
   useSelectedColorContext,
 } from "@/contexts";
 import { usePalette, usePlaySound } from "@/hooks";
@@ -177,7 +179,10 @@ interface NamedPaletteProps {
 }
 
 function NamedPalette({ colors, name }: NamedPaletteProps) {
+  const { canvas } = useCanvasContext();
   const { color: selectedColor, setColor } = useSelectedColorContext();
+  const { adjustedCoords } = useCanvasViewContext();
+  const { colorMapping } = useSelectedBlueprintContext();
   const playSound = usePlaySound("pick_color");
 
   if (colors?.length === 0) return null;
@@ -196,6 +201,20 @@ function NamedPalette({ colors, name }: NamedPaletteProps) {
         : colors.map((color) => (
             <InteractiveSwatch
               aria-selected={color === selectedColor}
+              style={
+                (
+                  adjustedCoords &&
+                  colorMapping[
+                    adjustedCoords.x + (adjustedCoords.y - 1) * canvas.width
+                  ] === color.rgba
+                ) ?
+                  {
+                    borderColor: `var(--discord-${color === selectedColor ? "white" : "blurple"})`,
+                    backgroundClip: "content-box",
+                    padding: "3px",
+                  }
+                : {}
+              }
               key={color.code}
               onClick={() => {
                 playSound();

@@ -7,6 +7,10 @@ export { CanvasProvider, useCanvasContext } from "./CanvasContext";
 export { CanvasViewProvider, useCanvasViewContext } from "./CanvasViewContext";
 export { QueryClientProvider } from "./QueryClientProvider";
 export {
+  SelectedBlueprintProvider,
+  useSelectedBlueprintContext,
+} from "./SelectedBlueprintContext";
+export {
   SelectedBoundsProvider,
   useSelectedBoundsContext,
 } from "./SelectedBoundsContext";

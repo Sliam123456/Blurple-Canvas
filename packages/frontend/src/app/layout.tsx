@@ -14,6 +14,7 @@ import {
   CanvasProvider,
   CanvasViewProvider,
   QueryClientProvider,
+  SelectedBlueprintProvider,
   SelectedBoundsProvider,
   SelectedColorProvider,
   SelectedFrameProvider,
@@ -114,7 +115,9 @@ async function LayoutProviders({ children }: { children: React.ReactNode }) {
                 <ActionPanelProvider>
                   <CanvasViewProvider>
                     <SelectedBoundsProvider>
-                      <AppProviders>{children}</AppProviders>
+                      <SelectedBlueprintProvider>
+                        <AppProviders>{children}</AppProviders>
+                      </SelectedBlueprintProvider>
                     </SelectedBoundsProvider>
                   </CanvasViewProvider>
                 </ActionPanelProvider>
