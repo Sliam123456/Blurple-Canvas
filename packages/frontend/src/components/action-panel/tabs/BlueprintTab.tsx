@@ -1,12 +1,19 @@
 import type { PixelColor } from "@blurple-canvas-web/types";
-import { styled } from "@mui/material";
+import {
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
+  styled,
+} from "@mui/material";
 import { useEffect, useRef, useState } from "react";
 import useLocalStorage from "@/app/settings/useLocalStorage";
 import { Button, DynamicButton } from "@/components/button";
 import Slider from "@/components/Slider";
 import { useCanvasContext, useSelectedBoundsContext } from "@/contexts/";
 import { usePalette } from "@/hooks";
-import type { ViewBounds } from "@/util";
+import { hexStringToPixelColor, type ViewBounds } from "@/util";
 import { GetNearestPixelColor } from "@/util/colorQuantization";
 import {
   drawSourceRectToCanvas,
@@ -82,10 +89,52 @@ export default function BlueprintTab({
   const [storedBounds, setStoredBounds] = useLocalStorage("blueprint/bounds");
   const [storedOpacity, setStoredOpacity] =
     useLocalStorage("blueprint/opacity");
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const trueBlueprintBounds =
     blueprintPlacedRef.current ?
       drawnBlueprintBoundsRef.current
     : blueprintBounds;
+  const updateOpacity = () => {
+    if (drawnOpacity.current === opacity) {
+      return;
+    }
+    if (!drawnBitmap.current || !trueBlueprintBounds) {
+      return;
+    }
+    const blueprint = document.getElementById("blueprint") as HTMLImageElement;
+    const blueprintCanvas = new OffscreenCanvas(canvas.width, canvas.height);
+    const blueprintContext = blueprintCanvas.getContext("2d");
+    blueprintContext?.drawImage(blueprint, 0, 0);
+    const blueprintData = blueprintContext?.getImageData(
+      trueBlueprintBounds.left,
+      trueBlueprintBounds.top,
+      trueBlueprintBounds.right - trueBlueprintBounds.left,
+      trueBlueprintBounds.bottom - trueBlueprintBounds.top,
+    );
+    if (!blueprintData) {
+      return;
+    }
+    for (let i = 0; i < drawnBitmap.current.length; i++) {
+      if (i % 4 !== 3) {
+        blueprintData.data[i] = drawnBitmap.current[i];
+        continue;
+      }
+      blueprintData.data[i] = drawnBitmap.current[i] === 0 ? 0 : opacity;
+    }
+    blueprintContext?.putImageData(
+      blueprintData,
+      trueBlueprintBounds.left,
+      trueBlueprintBounds.top,
+    );
+    blueprintCanvas.convertToBlob().then((blob) => {
+      if (blueprint.src) {
+        URL.revokeObjectURL(blueprint.src);
+      }
+      blueprint.src = URL.createObjectURL(blob);
+      drawnOpacity.current = opacity;
+      setStoredOpacity(opacity);
+    });
+  };
   const updateBlueprint = () => {
     if (!bitmapImage || !blueprintBounds) {
       return;
@@ -94,49 +143,6 @@ export default function BlueprintTab({
       drawnBlueprintBoundsRef.current === blueprintBounds &&
       currentSourceRef.current === bitmapImage.src
     ) {
-      if (drawnOpacity.current !== opacity) {
-        if (!drawnBitmap.current || !trueBlueprintBounds) {
-          return;
-        }
-        const blueprint = document.getElementById(
-          "blueprint",
-        ) as HTMLImageElement;
-        const blueprintCanvas = new OffscreenCanvas(
-          canvas.width,
-          canvas.height,
-        );
-        const blueprintContext = blueprintCanvas.getContext("2d");
-        blueprintContext?.drawImage(blueprint, 0, 0);
-        const blueprintData = blueprintContext?.getImageData(
-          trueBlueprintBounds.left,
-          trueBlueprintBounds.top,
-          trueBlueprintBounds.right - trueBlueprintBounds.left,
-          trueBlueprintBounds.bottom - trueBlueprintBounds.top,
-        );
-        if (!blueprintData) {
-          return;
-        }
-        for (let i = 0; i < drawnBitmap.current.length; i++) {
-          if (i % 4 !== 3) {
-            blueprintData.data[i] = drawnBitmap.current[i];
-            continue;
-          }
-          blueprintData.data[i] = drawnBitmap.current[i] === 0 ? 0 : opacity;
-        }
-        blueprintContext?.putImageData(
-          blueprintData,
-          trueBlueprintBounds.left,
-          trueBlueprintBounds.top,
-        );
-        blueprintCanvas.convertToBlob().then((blob) => {
-          if (blueprint.src) {
-            URL.revokeObjectURL(blueprint.src);
-          }
-          blueprint.src = URL.createObjectURL(blob);
-          drawnOpacity.current = opacity;
-          setStoredOpacity(opacity);
-        });
-      }
       return;
     }
     const bitmapCanvas = new OffscreenCanvas(canvas.width, canvas.height);
@@ -237,6 +243,10 @@ export default function BlueprintTab({
         blueprintBounds.right,
         blueprintBounds.bottom,
       ]);
+      if (blueprintFromStoredRef.current) {
+        blueprintPlacedRef.current = true;
+        blueprintFromStoredRef.current = false;
+      }
       currentSourceRef.current = bitmapImage.src;
       return () => {
         window.clearTimeout(blueprintPreviewTimeoutId);
@@ -315,6 +325,7 @@ export default function BlueprintTab({
       if (!blueprintPlacedRef.current) {
         updateBlueprint();
       }
+      updateOpacity();
     }, 50);
     return () => {
       window.clearTimeout(updateBlueprintTimeoutId);
@@ -392,7 +403,6 @@ export default function BlueprintTab({
                   setShowSelectedBounds(true);
                   setTabsLocked(true);
                   blueprintPlacedRef.current = false;
-                  blueprintFromStoredRef.current = false;
                 }}
               >
                 Move Blueprint
@@ -420,6 +430,63 @@ export default function BlueprintTab({
         >
           Upload Image
         </DynamicButton>
+        {trueBlueprintBounds ?
+          <>
+            <DynamicButton
+              color={hexStringToPixelColor("#ED4245")}
+              onAction={() => setIsDeleteConfirmOpen(true)}
+            >
+              Delete Blueprint
+            </DynamicButton>
+            <Dialog
+              open={isDeleteConfirmOpen}
+              onClose={() => setIsDeleteConfirmOpen(false)}
+            >
+              <DialogTitle>Delete blueprint?</DialogTitle>
+              <DialogContent>
+                <DialogContentText>
+                  This will permanently delete this blueprint. Are you sure you
+                  want to continue?
+                </DialogContentText>
+              </DialogContent>
+              <DialogActions>
+                <DynamicButton
+                  color={null}
+                  onAction={() => setIsDeleteConfirmOpen(false)}
+                >
+                  Cancel
+                </DynamicButton>
+                <DynamicButton
+                  color={hexStringToPixelColor("#ED4245")}
+                  onAction={() => {
+                    setIsDeleteConfirmOpen(false);
+                    resetSelectedBounds();
+                    setCanEdit(false);
+                    setShowSelectedBounds(false);
+                    setTabsLocked(false);
+                    blueprintPlacedRef.current = false;
+                    didInitBoundsRef.current = false;
+                    drawnBlueprintBoundsRef.current = null;
+                    currentSourceRef.current = "";
+                    drawnOpacity.current = 0;
+                    drawnBitmap.current = null;
+                    setStoredURL("");
+                    setStoredBounds(null);
+                    setStoredOpacity(128);
+                    setOpacity(0);
+                    setBitmapImage(null);
+                    const blueprint = document.getElementById(
+                      "blueprint",
+                    ) as HTMLImageElement;
+                    blueprint.parentNode?.removeChild(blueprint);
+                  }}
+                >
+                  Delete
+                </DynamicButton>
+              </DialogActions>
+            </Dialog>
+          </>
+        : null}
       </ActionPanelTabBody>
     </BlueprintTabBlock>
   );
