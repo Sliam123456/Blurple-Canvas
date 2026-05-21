@@ -297,6 +297,35 @@ export default function BlueprintTab({
     }
     const newBitmapImage = new Image();
     newBitmapImage.onload = () => {
+      const saveURL = (storedImage: OffscreenCanvas, quality: number) => {
+        storedImage
+          .convertToBlob({
+            type: quality === 1 ? "image/png" : "image/jpeg",
+            quality: quality,
+          })
+          .then((blob) => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+              const result = reader.result?.toString();
+              if ((result?.length ?? 0) > 5 * 1024 * 1024) {
+                saveURL(storedImage, quality / 2);
+              } else {
+                setStoredURL(result ?? null);
+              }
+            };
+            reader.readAsDataURL(blob);
+          });
+      };
+      const setNewBitmap = (newBitmapImage: HTMLImageElement) => {
+        setBitmapImage(newBitmapImage);
+        const storedImage = new OffscreenCanvas(
+          newBitmapImage.width,
+          newBitmapImage.height,
+        );
+        const storedImageContext = storedImage.getContext("2d");
+        storedImageContext?.drawImage(newBitmapImage, 0, 0);
+        saveURL(storedImage, 1);
+      };
       if (!didInitBoundsRef.current) {
         didInitBoundsRef.current = true;
         if (storedOpacity) {
@@ -315,7 +344,7 @@ export default function BlueprintTab({
             bottom: storedBounds[5],
           });
           blueprintFromStoredRef.current = true;
-          setBitmapImage(newBitmapImage);
+          setNewBitmap(newBitmapImage);
           return;
         } else {
           setBoundsToCurrentView(0.75);
@@ -327,20 +356,7 @@ export default function BlueprintTab({
       setShowSelectedBounds(true);
       setTabsLocked(true);
       blueprintPlacedRef.current = false;
-      setBitmapImage(newBitmapImage);
-      const storedImage = new OffscreenCanvas(
-        newBitmapImage.width,
-        newBitmapImage.height,
-      );
-      const storedImageContext = storedImage.getContext("2d");
-      storedImageContext?.drawImage(newBitmapImage, 0, 0);
-      storedImage.convertToBlob().then((blob) => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          setStoredURL(reader.result?.toString() ?? null);
-        };
-        reader.readAsDataURL(blob);
-      });
+      setNewBitmap(newBitmapImage);
     };
     const BlueprintImageInput: HTMLInputElement =
       document.createElement("input");
@@ -363,6 +379,9 @@ export default function BlueprintTab({
   });
   useEffect(() => {
     const updateBlueprintTimeoutId = window.setTimeout(() => {
+      if (possibleColors.length === 0) {
+        return;
+      }
       if (!blueprintPlacedRef.current || drawnColors.current !== useAllColors) {
         updateBlueprint();
       }
