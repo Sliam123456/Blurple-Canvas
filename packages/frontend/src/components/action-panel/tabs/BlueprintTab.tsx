@@ -152,14 +152,24 @@ export default function BlueprintTab({
     });
   };
   const updateBlueprint = () => {
-    if (!bitmapImage || !blueprintBounds) {
+    if (!bitmapImage) {
       return;
     }
+    let newBlueprintBounds = blueprintBounds;
     if (
       drawnBlueprintBoundsRef.current === blueprintBounds &&
       currentSourceRef.current === bitmapImage.src &&
       drawnColors.current === useAllColors
     ) {
+      return;
+    } else if (
+      !blueprintBounds &&
+      currentSourceRef.current === bitmapImage.src &&
+      drawnColors.current !== useAllColors
+    ) {
+      newBlueprintBounds = drawnBlueprintBoundsRef.current;
+    }
+    if (!newBlueprintBounds) {
       return;
     }
     const bitmapCanvas = new OffscreenCanvas(canvas.width, canvas.height);
@@ -169,16 +179,16 @@ export default function BlueprintTab({
     }
     bitmapContext.drawImage(
       bitmapImage,
-      blueprintBounds.left,
-      blueprintBounds.top,
-      blueprintBounds.right - blueprintBounds.left,
-      blueprintBounds.bottom - blueprintBounds.top,
+      newBlueprintBounds.left,
+      newBlueprintBounds.top,
+      newBlueprintBounds.right - newBlueprintBounds.left,
+      newBlueprintBounds.bottom - newBlueprintBounds.top,
     );
     const bitmap = bitmapContext?.getImageData(
-      blueprintBounds.left,
-      blueprintBounds.top,
-      blueprintBounds.right - blueprintBounds.left,
-      blueprintBounds.bottom - blueprintBounds.top,
+      newBlueprintBounds.left,
+      newBlueprintBounds.top,
+      newBlueprintBounds.right - newBlueprintBounds.left,
+      newBlueprintBounds.bottom - newBlueprintBounds.top,
     );
     if (!bitmap) {
       return;
@@ -198,8 +208,8 @@ export default function BlueprintTab({
       const newColor = GetNearestPixelColor(possibleColors, pixelColor);
       newColorMapping[
         ((i / 4) % bitmap.width) +
-          blueprintBounds.left +
-          (Math.floor(i / 4 / bitmap.width) + blueprintBounds.top) *
+          newBlueprintBounds.left +
+          (Math.floor(i / 4 / bitmap.width) + newBlueprintBounds.top) *
             canvas.width +
           1
       ] = newColor;
@@ -212,16 +222,16 @@ export default function BlueprintTab({
     setStoredColors(useAllColors);
     bitmapContext.putImageData(
       bitmap,
-      blueprintBounds.left,
-      blueprintBounds.top,
+      newBlueprintBounds.left,
+      newBlueprintBounds.top,
     );
     const canvasWrapper = document.getElementById("canvas-image-wrapper");
     const blueprintCanvas = new OffscreenCanvas(canvas.width, canvas.height);
     const blueprintContext = blueprintCanvas.getContext("2d");
     blueprintContext?.putImageData(
       bitmap,
-      blueprintBounds.left,
-      blueprintBounds.top,
+      newBlueprintBounds.left,
+      newBlueprintBounds.top,
     );
     if (!previewCanvasRef) {
       return;
@@ -233,13 +243,13 @@ export default function BlueprintTab({
         previewCanvasRef,
         sourceImage,
         {
-          x: blueprintBounds.left,
-          y: blueprintBounds.top,
-          width: blueprintBounds.right - blueprintBounds.left,
-          height: blueprintBounds.bottom - blueprintBounds.top,
+          x: newBlueprintBounds.left,
+          y: newBlueprintBounds.top,
+          width: newBlueprintBounds.right - newBlueprintBounds.left,
+          height: newBlueprintBounds.bottom - newBlueprintBounds.top,
         },
-        blueprintBounds.right - blueprintBounds.left,
-        blueprintBounds.bottom - blueprintBounds.top,
+        newBlueprintBounds.right - newBlueprintBounds.left,
+        newBlueprintBounds.bottom - newBlueprintBounds.top,
       );
     }, 50);
     for (let i = 0; i < bitmapData.length; i += 4) {
@@ -249,8 +259,8 @@ export default function BlueprintTab({
     setStoredOpacity(opacity);
     blueprintContext?.putImageData(
       bitmap,
-      blueprintBounds.left,
-      blueprintBounds.top,
+      newBlueprintBounds.left,
+      newBlueprintBounds.top,
     );
     blueprintCanvas.convertToBlob().then((blob) => {
       let blueprint = document.getElementById("blueprint") as HTMLImageElement;
@@ -262,14 +272,14 @@ export default function BlueprintTab({
       }
       blueprint.src = URL.createObjectURL(blob);
       canvasWrapper?.appendChild(blueprint);
-      drawnBlueprintBoundsRef.current = blueprintBounds;
+      drawnBlueprintBoundsRef.current = newBlueprintBounds;
       setStoredBounds([
-        blueprintBounds.width,
-        blueprintBounds.height,
-        blueprintBounds.left,
-        blueprintBounds.top,
-        blueprintBounds.right,
-        blueprintBounds.bottom,
+        newBlueprintBounds.width,
+        newBlueprintBounds.height,
+        newBlueprintBounds.left,
+        newBlueprintBounds.top,
+        newBlueprintBounds.right,
+        newBlueprintBounds.bottom,
       ]);
       if (blueprintFromStoredRef.current) {
         blueprintPlacedRef.current = true;
