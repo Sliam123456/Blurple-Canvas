@@ -43,12 +43,12 @@ export function StaticSwatch({
   ...props
 }: StaticSwatchProps) {
   const { name, rgba } = paletteColor;
-
+  props.style = {
+    ...props.style,
+    "--swatch-color": rgbaToCssColor(rgba),
+  } as CSSProperties;
   return (
-    <SwatchBase
-      style={{ "--swatch-color": rgbaToCssColor(rgba) } as CSSProperties}
-      {...props}
-    >
+    <SwatchBase {...props}>
       <VisuallyHidden>{name}</VisuallyHidden>
       {children}
     </SwatchBase>
