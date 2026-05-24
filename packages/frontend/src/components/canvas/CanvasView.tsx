@@ -871,11 +871,19 @@ export default function CanvasView({
     const canvasImageWrapper = canvasImageWrapperRef.current;
     if (!canvasImageWrapper) return;
     // Clears all overlaid pixels and retains the original image
-    while (canvasImageWrapper.children.length > 1) {
+    while (
+      Array.from(canvasImageWrapper.children).filter(
+        (element) => element.id !== "blueprint",
+      ).length > 1
+    ) {
       const lastChild = canvasImageWrapper.lastChild;
       if (lastChild && lastChild instanceof HTMLImageElement) {
-        URL.revokeObjectURL(lastChild.src);
-        canvasImageWrapper.removeChild(lastChild);
+        if (lastChild.id !== "blueprint") {
+          URL.revokeObjectURL(lastChild.src);
+          canvasImageWrapper.removeChild(lastChild);
+        } else {
+          canvasImageWrapper.firstChild?.after(lastChild);
+        }
       }
     }
   };

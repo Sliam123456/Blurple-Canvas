@@ -225,7 +225,6 @@ export default function BlueprintTab({
       newBlueprintBounds.left,
       newBlueprintBounds.top,
     );
-    const canvasWrapper = document.getElementById("canvas-image-wrapper");
     const blueprintCanvas = new OffscreenCanvas(canvas.width, canvas.height);
     const blueprintContext = blueprintCanvas.getContext("2d");
     blueprintContext?.putImageData(
@@ -271,6 +270,7 @@ export default function BlueprintTab({
         URL.revokeObjectURL(blueprint.src);
       }
       blueprint.src = URL.createObjectURL(blob);
+      const canvasWrapper = document.getElementById("canvas-image-wrapper");
       canvasWrapper?.appendChild(blueprint);
       drawnBlueprintBoundsRef.current = newBlueprintBounds;
       setStoredBounds([
@@ -379,7 +379,8 @@ export default function BlueprintTab({
   });
   useEffect(() => {
     const updateBlueprintTimeoutId = window.setTimeout(() => {
-      if (possibleColors.length === 0) {
+      const canvasWrapper = document.getElementById("canvas-image-wrapper");
+      if (possibleColors.length === 0 || canvasWrapper?.ariaBusy !== "false") {
         return;
       }
       if (!blueprintPlacedRef.current || drawnColors.current !== useAllColors) {
