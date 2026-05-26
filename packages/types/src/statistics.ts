@@ -1,12 +1,20 @@
 import z from "zod";
 import { PaletteColorSummarySchema } from "./palette";
 
+const ColorStatsSchema = z.object({
+  count: z.number().int(),
+  name: z.string(),
+});
+
+export type ColorStats = z.infer<typeof ColorStatsSchema>;
+
 export const UserStatsSchema = z.object({
   userId: z.string(),
   canvasId: z.number().int().positive(),
   totalPixels: z.number().int().nonnegative().optional(),
   rank: z.number().int().positive().optional(),
   mostFrequentColor: PaletteColorSummarySchema.optional(),
+  colorStats: ColorStatsSchema.optional(),
   // placeFrequency: z.string().optional(),  // Not currently supported by Prisma
   mostRecentTimestamp: z.iso.datetime().optional(),
 });

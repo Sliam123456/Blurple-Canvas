@@ -2,12 +2,13 @@ import type {
   BlurpleEvent,
   CanvasInfo,
   CanvasStatisticsSummary,
+  ColorStats,
   EventStatisticsSummary,
   LeaderboardEntrySchema,
   Paginated,
   UserStats,
 } from "@blurple-canvas-web/types";
-import { prisma } from "@/client";
+import { Prisma, prisma } from "@/client";
 import { NotFoundError } from "../errors";
 import { createDefaultAvatarUrl } from "./discordProfileService";
 import { toPaletteColorSummary } from "./paletteService";
@@ -39,6 +40,11 @@ export async function getUserStats(
     },
   });
 
+  const color_stats = await prisma.$queryRaw<ColorStats>`
+  WITH history_stats AS (SELECT COUNT(*), color_id FROM history WHERE ${Prisma.sql`user_id = ${userId} AND canvas_id = ${canvasId}`} GROUP BY color_id)
+  SELECT HS.count, C.name FROM history_stats HS JOIN color C ON HS.color_id = C.id ORDER BY count DESC
+  `;
+
   if (!stats) {
     return null;
   }
@@ -49,6 +55,7 @@ export async function getUserStats(
     totalPixels: stats.total_pixels,
     rank: stats.rank,
     mostFrequentColor: toPaletteColorSummary(stats.most_frequent_color),
+    colorStats: color_stats,
     // placeFrequency: place_frequency,
     mostRecentTimestamp: stats.most_recent_timestamp?.toISOString(),
   };
